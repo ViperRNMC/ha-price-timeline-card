@@ -6,7 +6,7 @@
 
 [![hacs][hacs-default]][hacs-default-link] [![hacs][hacs-validate]][hacs-validate-link]
 
-#  <img src="https://raw.githubusercontent.com/Neisi/ha-price-timeline-card/main/assets/icon_optimized.png" width="40" height="40"> HA Price Timeline Card
+# ![icon](./assets/icon_40_40.png) HA Price Timeline Card
 
 A custom Home Assistant Lovelace card that visualizes **hourly energy prices** or **15-minutes energy prices** on a timeline , circle or graph.  
 Prices are color-coded in relation to the daily average, so you can quickly spot cheap and expensive hours or slots.  
