@@ -15,7 +15,7 @@ export default {
   editor_price_label: "Price sensor",
   editor_price_desc: "Sensor that contains the current price (in attribute data)",
   editor_average_label: "Optional: Average value",
-  editor_average_desc: "Number in euros (e.g., 0.225) that represents the average price (optional)",
+  editor_average_desc: "Number (e.g. 0.225) indicating the average price (optional)",
   editor_theme_label: "Theme",
   editor_theme_desc: "Display mode of the card.",
   editor_start_today: "Today",

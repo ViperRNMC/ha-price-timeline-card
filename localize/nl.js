@@ -15,7 +15,7 @@ export default {
   editor_price_label: "Prijs-sensor",
   editor_price_desc: "Sensor die de actuele prijs bevat (in data-attributen)",
   editor_average_label: "Optioneel: Gemiddelde waarde",
-  editor_average_desc: "Getal in euro (bijv. 0.225) dat de gemiddelde prijs aangeeft (optioneel)",
+  editor_average_desc: "Getal (bijv. 0.225) dat de gemiddelde prijs aangeeft (optioneel)",
   editor_theme_label: "Thema",
   editor_theme_desc: "Weergavemodus van de kaart.",
   editor_start_today: "Vandaag",

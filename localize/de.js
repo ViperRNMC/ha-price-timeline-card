@@ -15,7 +15,7 @@ export default {
   editor_price_label: "Preis-Sensor",
   editor_price_desc: "Sensor, der den aktuellen Preis enthält (in Attributen data)",
   editor_average_label: "Optional: Durchschnittswert",
-  editor_average_desc: "Zahl in Euro (z.B. 0.225), die den Durchschnitts-Preis angibt (optional)",
+  editor_average_desc: "Zahl (z.B. 0.225), die den Durchschnitts-Preis angibt (optional)",
   editor_theme_label: "Thema",
   editor_theme_desc: "Darstellungsmodus der Karte.",
   editor_start_today: "Heute",

@@ -15,7 +15,7 @@ export default {
   editor_price_label: "Sensor de precio",
   editor_price_desc: "Sensor que contiene el precio actual (en el atributo data)",
   editor_average_label: "Opcional: Valor promedio",
-  editor_average_desc: "Número en euros (p. ej., 0.225) que representa el precio promedio (opcional)",
+  editor_average_desc: "Número (p. ej. 0.225) que indica el precio medio (opcional)",
   editor_theme_label: "Tema",
   editor_theme_desc: "Modo de visualización de la tarjeta.",
   editor_start_today: "Hoy",

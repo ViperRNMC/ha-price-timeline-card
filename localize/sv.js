@@ -15,7 +15,7 @@ export default {
   editor_price_label: "Pris-sensor",
   editor_price_desc: "Sensor som innehåller det aktuella priset (i attributet data)",
   editor_average_label: "Valfritt: Genomsnittsvärde",
-  editor_average_desc: "Siffra i euro (t.ex. 0.225) som anger genomsnittspriset (valfritt)",
+  editor_average_desc: "Tal (t.ex. 0.225) som anger genomsnittspriset (valfritt)",
   editor_theme_label: "Tema",
   editor_theme_desc: "Visningsläge för kortet.",
   editor_start_today: "Idag",
