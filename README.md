@@ -122,7 +122,7 @@ The triggers are only examples and must be adapted accordingly if desired. Depen
 
 ##### tibber integration (!<u>optionally</u>!)
 Since the Tibber integration does not directly provide a sensor with hourly or quarter-hourly prices, but instead provides an action to get all prices, we can use this with a little extra effort.
-Folowing template sensor:
+Following template sensor:
 
 ```yaml
   - trigger:
