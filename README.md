@@ -24,6 +24,9 @@ Inspired by Tibber, this custom card visualizes **hourly energy prices** on a ti
 - ⚡ Simple configuration
 - 🔄 toggle today / tomorrow
 
+The card can highlight the cheapest times of the day if you want (you can activated it in configuration - see chapter parameters)
+
+![cheap_time_slots](./assets/examples/light_graph_cheap_times.png) 
 
 ### Timeline mode:
 By default, the card shows a **timeline view** of today's electricity prices.  
@@ -284,6 +287,9 @@ Here are the available parameters for this Lovelace card.
 | `day_switch`    | boolean  | `false` | Show day toggler to change between today and tomorrow (for circle and timeline view only) |
 | `start_view`    | string  | `today` | Determines which view is shown by default when the card loads. Possible values: `today`, `tomorrow` (for circle and timeline view only) |
 | `currency` | object | `{ name: "Cent", symbol: "¢" }` | Defines how the unit for energy price is displayed. Use this to customize the currency subunit (e.g., "Cent", "Öre", ...). The `name` is shown as text label. The `symbol` field is currently optional and not yet displayed in all views, but **it is recommended to set it** since it may be used by future features or visualizations. |
+| `cheap_times` | boolean | `false` | The card highlights the cheapest times of the day in graph and the phases are displayed in text form. <ul><li>Prices are analyzed <strong>per day</strong>, so each day is evaluated on its own.</li><li>For each day, prices are normalized using a relative scale: <code>relative price = (price - daily minimum) / (daily maximum - daily minimum)</code>.</li><li>The <strong>lowest ~25%</strong> of all intervals for that day are considered <em>cheap</em>.</li><li>Consecutive cheap intervals are grouped into longer time phases.</li><li>Only <strong>future</strong> phases are shown, and only if they last <strong>at least 1 hour</strong>.</li></ul> |
+| `cheap_time_sources` | array of strings | `undefined` | Optional and only available in yaml mode. If `cheap_times: true` is set, you can provide a list of sensors/entity IDs to define the cheap time periods manually instead of letting the card calculate them automatically. This is useful if you already use helpers from the [ha_epex_spot_sensor](https://github.com/mampfes/ha_epex_spot_sensor) add-on – you can pass those sensor IDs here to display their cheap periods directly.|
+
 ---
 
 ### 📘 Configuration
@@ -301,7 +307,7 @@ price: sensor.epex_price
 
 circle view and dark theme:
 ```yaml
-type: custom:price-timeline-card-test
+type: custom:price-timeline-card
 price: sensor.epex_price
 theme: dark
 view: circle
@@ -328,6 +334,28 @@ currency:
   symbol: öre
 ```
 ![Visual Editor](./assets/examples/currency.png)
+
+graph view with cheap time visualization:
+```yaml
+type: custom:price-timeline-card
+price: sensor.tibber_prices
+view: graph
+theme: dark
+cheap_times: true
+```
+![cheap_time_slots](./assets/examples/light_graph_cheap_times.png) ![cheap_time_slots2](./assets/examples/light_graph_cheap_times_2.png) 
+
+graph view with cheap time visualization with use of ha_epex_spot_sensors:
+```yaml
+type: custom:price-timeline-card
+price: sensor.tibber_prices
+view: graph
+cheap_times: true
+cheap_time_sources:
+  - binary_sensor.car_charge
+  - binary_sensor.washing
+```
+![cheap_time_slots](./assets/examples/light_graph_cheap_times_addon.png) 
 
 #### Configuration with Visual Editor
 
