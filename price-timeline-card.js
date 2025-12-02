@@ -466,22 +466,150 @@ class PriceTimelineCard extends LitElement {
               border-top: 1px solid rgba(120,120,120, 0.08);
             }
             
+            /* --- Bar View --- */
+            .bar-container {
+              padding: 8px 0;
+            }
+            
+            .bar-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 12px;
+            }
+            
+            .bar-title {
+              font-size: 18px;
+              font-weight: 600;
+            }
+            
+            .bar-current-price {
+              font-size: 16px;
+              font-weight: 600;
+            }
+            
+            .bars-wrapper {
+              position: relative;
+              display: flex;
+              gap: 2px;
+              height: 80px;
+              align-items: flex-end;
+              margin: 16px 0;
+            }
+            
+            .bar {
+              flex: 1;
+              position: relative;
+              border-radius: 3px 3px 0 0;
+              transition: opacity 0.2s;
+              min-width: 8px;
+            }
+            
+            .bar.current {
+              position: relative;
+            }
+            
+            .bar.current::before {
+              content: '';
+              position: absolute;
+              top: -12px;
+              left: 50%;
+              transform: translateX(-50%);
+              width: 0;
+              height: 0;
+              border-left: 6px solid transparent;
+              border-right: 6px solid transparent;
+              border-top: 8px solid var(--primary-color);
+            }
+            
+            .bar-labels {
+              display: flex;
+              gap: 2px;
+              font-size: 10px;
+              color: var(--card-subtle);
+              margin-top: 4px;
+            }
+            
+            .bar-label {
+              flex: 1;
+              text-align: center;
+              min-width: 8px;
+            }
+            
+            .bar-label.highlight {
+              font-weight: 600;
+              color: var(--card-text);
+            }
+            
+            .cheap-highlight {
+              position: absolute;
+              bottom: 0;
+              height: 100%;
+              background: var(--turquoise);
+              opacity: 0.15;
+              border-radius: 4px;
+              pointer-events: none;
+            }
+            
+            .bar-footer {
+              display: flex;
+              justify-content: space-between;
+              font-size: 12px;
+              color: var(--card-subtle);
+              margin-top: 8px;
+            }
+            
+            /* --- Tooltip --- */
+            .price-tooltip {
+              position: fixed;
+              background: rgba(0, 0, 0, 0.9);
+              color: white;
+              padding: 8px 12px;
+              border-radius: 6px;
+              font-size: 12px;
+              pointer-events: none;
+              z-index: 10000;
+              white-space: nowrap;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+              display: none;
+            }
+            
+            .price-tooltip.visible {
+              display: block;
+            }
+            
+            .price-tooltip::after {
+              content: '';
+              position: absolute;
+              top: 100%;
+              left: 50%;
+              transform: translateX(-50%);
+              border: 6px solid transparent;
+              border-top-color: rgba(0, 0, 0, 0.9);
+            }
                         
         `;
   }
 
   setConfig(config) {
     if (!config.price) throw new Error(localize("missing_price", "en"));
+    
+    // Only reset _dayOffset if this is the initial config or price entity changed
+    const shouldResetOffset = !this.config || this.config.price !== config.price;
+    
     this.config = config;
     this.theme = this.config.appearance_settings?.theme || "light";
     this.colorScheme = this.config.appearance_settings?.color_scheme || "default";
     this.selectedIndex = undefined;
-    switch (this.config.navigation_settings?.start_view) {
-      case "tomorrow":
-        this._dayOffset = 1;
-        break;
-      default:
-        this._dayOffset = 0;
+    
+    if (shouldResetOffset) {
+      switch (this.config.navigation_settings?.start_view) {
+        case "tomorrow":
+          this._dayOffset = 1;
+          break;
+        default:
+          this._dayOffset = 0;
+      }
     }
   }
 
@@ -1329,7 +1457,7 @@ class PriceTimelineCard extends LitElement {
                 <div style="text-align: right; font-weight: bold;">${format(min)} - ${format(max)}</div>
                 </div>
             </div>
-            <div class="timeline">
+            <div class="timeline" @mouseleave=${this._hideTooltip}>
                 ${data.map((d, i) => {
       const color = this._getColorForPrice(d.price_per_kwh, min, max);
       const faded = i < currentIndex ? "faded" : "";
@@ -1339,7 +1467,17 @@ class PriceTimelineCard extends LitElement {
       let borderRadius = "";
       if (prevColor !== color) borderRadius += "border-top-left-radius:10px; border-bottom-left-radius:10px;";
       if (nextColor !== color) borderRadius += "border-top-right-radius:10px; border-bottom-right-radius:10px;";
-      return html`<div class="slot ${faded} ${marker}" style="background:${color};${borderRadius};--progress:${i === currentIndex ? progress : 0}"></div>`;
+      
+      const time = new Date(d.start_time);
+      const timeStr = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
+      const priceStr = ((d.price_per_kwh * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
+      
+      return html`<div 
+        class="slot ${faded} ${marker}" 
+        style="background:${color};${borderRadius};--progress:${i === currentIndex ? progress : 0}"
+        @mouseenter=${(e) => this._showTooltip(e, timeStr, priceStr, this._getCurrency(lang))}
+        @mousemove=${(e) => this._moveTooltip(e)}
+      ></div>`;
     })}
             </div>
             <div class="scale">
@@ -1389,6 +1527,147 @@ class PriceTimelineCard extends LitElement {
                 </div>
             </div>
         `;
+  }
+
+  // --------------------
+  //BAR
+  //---------------------
+  _renderBar(data, dataIntervalls, currentIndex, avg, lang) {
+    const { min, max } = this._getPriceRange(data);
+    const currentPrice = data[currentIndex].price_per_kwh;
+    const formattedPrice = ((currentPrice * 100).toFixed(1))
+      .replace('.', ',')
+      .replace(/,0$/, '');
+
+    // Calculate cheap intervals for highlighting
+    const cheapFlags = this.config.price_optimization?.cheap_times 
+      ? this._getCheapIntervalsForBar(data, dataIntervalls) 
+      : [];
+
+    return html`
+      <div class="bar-container">
+        <div class="bar-header">
+          <div class="bar-title">${localize("label_price", lang)}</div>
+          <div class="bar-current-price">${formattedPrice} ${this._getCurrency(lang)}</div>
+        </div>
+        
+        <div class="bars-wrapper" @mouseleave=${this._hideTooltip}>
+          ${data.map((d, i) => {
+            const height = ((d.price_per_kwh - min) / (max - min || 1)) * 100;
+            const color = this._getColorForPrice(d.price_per_kwh, min, max);
+            const isCurrent = i === currentIndex;
+            const time = new Date(d.start_time);
+            const timeStr = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
+            const priceStr = ((d.price_per_kwh * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
+            
+            return html`
+              <div 
+                class="bar ${isCurrent ? 'current' : ''}" 
+                style="height: ${height}%; background-color: ${color};"
+                @mouseenter=${(e) => this._showTooltip(e, timeStr, priceStr, this._getCurrency(lang))}
+                @mousemove=${(e) => this._moveTooltip(e)}
+              ></div>
+            `;
+          })}
+          ${cheapFlags.map(interval => html`
+            <div 
+              class="cheap-highlight" 
+              style="left: ${(interval.start / data.length) * 100}%; width: ${((interval.end - interval.start + 1) / data.length) * 100}%"
+            ></div>
+          `)}
+        </div>
+        
+        <div class="bar-labels">
+          ${data.map((d, i) => {
+            const time = new Date(d.start_time);
+            const hour = time.getHours();
+            const showLabel = i === 0 || hour % 3 === 0 || i === data.length - 1;
+            return html`
+              <div class="bar-label ${i === currentIndex ? 'highlight' : ''}">
+                ${showLabel ? String(hour).padStart(2, '0') : ''}
+              </div>
+            `;
+          })}
+        </div>
+      </div>
+    `;
+  }
+
+  _getCheapIntervalsForBar(data, dataIntervalls) {
+    if (!dataIntervalls || Object.keys(dataIntervalls).length === 0) return [];
+    
+    const intervals = [];
+    for (const [day, phases] of Object.entries(dataIntervalls)) {
+      for (const phase of phases) {
+        const startTime = new Date(phase.start);
+        const endTime = new Date(phase.end);
+        
+        let startIdx = -1, endIdx = -1;
+        data.forEach((d, i) => {
+          const t = new Date(d.start_time);
+          if (t >= startTime && startIdx === -1) startIdx = i;
+          if (t < endTime) endIdx = i;
+        });
+        
+        if (startIdx !== -1 && endIdx !== -1) {
+          intervals.push({ start: startIdx, end: endIdx });
+        }
+      }
+    }
+    return intervals;
+  }
+
+  _showTooltip(e, time, price, currency) {
+    // Remove existing tooltip
+    this._hideTooltip();
+    
+    // Create new tooltip
+    const tooltip = document.createElement('div');
+    tooltip.className = 'price-tooltip visible';
+    tooltip.innerHTML = `<strong>${time}</strong> • ${price} ${currency}`;
+    tooltip.id = 'price-tooltip';
+    
+    // Add to shadow root
+    this.shadowRoot.appendChild(tooltip);
+    
+    // Position tooltip
+    this._positionTooltip(e, tooltip);
+  }
+
+  _positionTooltip(e, tooltip) {
+    const rect = e.target.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    
+    // Position above the element, centered
+    let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+    let top = rect.top - tooltipRect.height - 8;
+    
+    // Keep within viewport
+    if (left < 10) left = 10;
+    if (left + tooltipRect.width > window.innerWidth - 10) {
+      left = window.innerWidth - tooltipRect.width - 10;
+    }
+    if (top < 10) {
+      // If no space above, show below
+      top = rect.bottom + 8;
+    }
+    
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+  }
+
+  _moveTooltip(e) {
+    const tooltip = this.shadowRoot?.querySelector('#price-tooltip');
+    if (tooltip) {
+      this._positionTooltip(e, tooltip);
+    }
+  }
+
+  _hideTooltip() {
+    const tooltip = this.shadowRoot?.querySelector('#price-tooltip');
+    if (tooltip) {
+      tooltip.remove();
+    }
   }
 
   // --------------------
@@ -1464,6 +1743,9 @@ class PriceTimelineCard extends LitElement {
         break;
       case "circle":
         cardContent = this._renderCircle(data, currentIndex, avg, lang);
+        break;
+      case "bar":
+        cardContent = this._renderBar(data, dataIntervalls, currentIndex, avg, lang);
         break;
       case "graph":
         cardContent = this._renderChart(data, dataIntervalls, currentIndex, avg, lang);
@@ -1603,6 +1885,7 @@ class PriceTimelineEditor extends LitElement {
                 mode: "dropdown",
                 options: [
                   { value: "timeline", label: "Timeline" },
+                  { value: "bar", label: "Bar" },
                   { value: "circle", label: "Circle" },
                   { value: "graph", label: "Graph" },
                 ],
@@ -1613,12 +1896,12 @@ class PriceTimelineEditor extends LitElement {
         ],
       },
       
-      // Navigation Settings (only for timeline/circle)
-      ...(mode === "circle" || mode === "timeline" ? [{
+      // Period Settings
+      {
         name: "navigation_settings",
         type: "expandable",
         title: localize("editor_navigation_settings", lang),
-        icon: "mdi:navigation",
+        icon: "mdi:calendar-clock",
         schema: [
           { name: "day_switch", selector: { boolean: {} } },
           {
@@ -1633,7 +1916,7 @@ class PriceTimelineEditor extends LitElement {
             },
           },
         ],
-      }] : []),
+      },
       
       // Price Optimization
       {
