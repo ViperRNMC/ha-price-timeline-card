@@ -35,6 +35,8 @@ export default {
   editor_currency_desc: "Eigen valuta opgeven",
   editor_color_scheme_label: "Kleurenschema",
   editor_color_scheme_desc: "Kies hoe prijzen worden gekleurd",
+  editor_gradient_fill_label: "Verloop vulling",
+  editor_gradient_fill_desc: "Toon een gekleurde verloop vulling onder de grafieklijn",
   editor_day_switch_label: "Dagwisselaar",
   editor_day_switch_desc: "Toont of verbergt de dagwisselaar",
   editor_cheap_times_label: "Goedkope tijden",

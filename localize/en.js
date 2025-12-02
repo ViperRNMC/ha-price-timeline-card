@@ -35,6 +35,8 @@ export default {
   editor_currency_desc: "Specify a custom currency",
   editor_color_scheme_label: "Color Scheme",
   editor_color_scheme_desc: "Choose how prices are colored",
+  editor_gradient_fill_label: "Gradient Fill",
+  editor_gradient_fill_desc: "Show a colored gradient fill under the graph line",
   editor_day_switch_label: "Day Switch",
   editor_day_switch_desc: "Shows or hides the day switch",
   editor_cheap_times_label: "Cheap Times",

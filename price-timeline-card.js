@@ -559,6 +559,61 @@ class PriceTimelineCard extends LitElement {
               margin-top: 8px;
             }
             
+            /* Blocks View */
+            .blocks-container {
+              display: flex;
+              flex-direction: column;
+              gap: 2px;
+              padding: 10px;
+              background: var(--card-background-color, #fff);
+            }
+            
+            .blocks-row {
+              display: flex;
+              gap: 2px;
+            }
+            
+            .block {
+              flex: 1;
+              height: 20px;
+              border-radius: 4px;
+              position: relative;
+              cursor: pointer;
+              transition: transform 0.2s, box-shadow 0.2s;
+            }
+            
+            .block:hover {
+              transform: scale(1.05);
+              box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+              z-index: 10;
+            }
+            
+            .block.current::before {
+              content: '';
+              position: absolute;
+              top: -12px;
+              left: 50%;
+              transform: translateX(-50%);
+              width: 0;
+              height: 0;
+              border-left: 6px solid transparent;
+              border-right: 6px solid transparent;
+              border-top: 8px solid var(--primary-color);
+            }
+            
+            .blocks-time-labels {
+              display: flex;
+              gap: 2px;
+              font-size: 10px;
+              color: var(--card-subtle);
+              margin-top: 4px;
+            }
+            
+            .blocks-time-labels .time-label {
+              flex: 1;
+              text-align: center;
+            }
+            
             /* --- Tooltip --- */
             .price-tooltip {
               position: fixed;
@@ -880,19 +935,24 @@ class PriceTimelineCard extends LitElement {
 
   _getFutureCheapPhases(phasesObj) {
     const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStr = _localYYYYMMDD(today);
     const ONE_HOUR = 60 * 60 * 1000;
     const result = {};
 
     for (const [day, phases] of Object.entries(phasesObj)) {
       const filtered = [];
+      const isToday = day === todayStr;
 
       for (const phase of phases) {
         const start = new Date(phase.start);
         const end = new Date(phase.end);
         const duration = end - start;
 
-        if (end > now && duration >= ONE_HOUR) {
+        // Show all phases from today (even past ones), but only future phases for other days
+        const shouldShow = isToday ? duration >= ONE_HOUR : (end > now && duration >= ONE_HOUR);
 
+        if (shouldShow) {
           filtered.push({
             start: _localISODateTime(start),
             end: _localISODateTime(end),
@@ -1088,6 +1148,18 @@ class PriceTimelineCard extends LitElement {
     }).join("");
     svg.prepend(grad);
 
+    // Create filled area under the line (if gradient_fill is enabled)
+    if (this.config.appearance_settings?.gradient_fill) {
+      const areaPath = d + ` L ${width - margin.right},${margin.top + innerH} L ${margin.left},${margin.top + innerH} Z`;
+      const area = document.createElementNS(svgNS, "path");
+      area.setAttribute("d", areaPath);
+      area.setAttribute("fill", "url(#lineGradient)");
+      area.setAttribute("fill-opacity", "0.15");
+      area.setAttribute("stroke", "none");
+      svg.appendChild(area);
+    }
+
+    // Line on top of the fill
     const path = document.createElementNS(svgNS, "path");
     path.setAttribute("d", d);
     path.setAttribute("fill", "none");
@@ -1300,6 +1372,37 @@ class PriceTimelineCard extends LitElement {
 
     markMinMax(svg, pts, todayStart, todayEnd);
     markMinMax(svg, pts, tomorrowStart, tomorrowEnd);
+
+    // Add invisible hover areas for tooltips
+    data.forEach((d, i) => {
+      const startTime = new Date(d.start_time);
+      const endTime = new Date(d.end_time || new Date(startTime.getTime() + 3600000));
+      const xStart = xFor(startTime);
+      const xEnd = xFor(endTime);
+      const rect = document.createElementNS(svgNS, "rect");
+      rect.setAttribute("x", xStart);
+      rect.setAttribute("y", margin.top);
+      rect.setAttribute("width", xEnd - xStart);
+      rect.setAttribute("height", innerH);
+      rect.setAttribute("fill", "transparent");
+      rect.setAttribute("cursor", "pointer");
+      rect.setAttribute("data-index", i);
+      
+      const timeStr = `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}`;
+      const priceStr = ((d.price_per_kwh * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
+      
+      rect.addEventListener("mouseenter", (e) => {
+        this._showTooltip(e, timeStr, priceStr, this._getCurrency(lang));
+      });
+      rect.addEventListener("mousemove", (e) => {
+        this._moveTooltip(e);
+      });
+      rect.addEventListener("mouseleave", () => {
+        this._hideTooltip();
+      });
+      
+      svg.appendChild(rect);
+    });
 
     return svg;
 
@@ -1593,6 +1696,76 @@ class PriceTimelineCard extends LitElement {
     `;
   }
 
+  _renderBlocks(data, dataIntervalls, currentIndex, avg, lang) {
+    const currency = this._getCurrency(lang);
+    const now = new Date();
+    
+    // Get min/max for color calculation
+    const prices = data.map(d => d.price_per_kwh);
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    
+    // Get cheap intervals
+    const cheapIntervals = this._getCheapIntervalsForBar(data, dataIntervalls);
+    const cheapSet = new Set();
+    cheapIntervals.forEach(interval => {
+      for (let i = interval.start; i <= interval.end; i++) {
+        cheapSet.add(i);
+      }
+    });
+    
+    return html`
+      <div class="blocks-container" @mouseleave=${() => this._hideTooltip()}>
+        <div class="blocks-row">
+          ${data.map((d, i) => {
+              const globalIndex = i;
+              const isCurrent = globalIndex === currentIndex;
+              const isCheap = cheapSet.has(globalIndex);
+              
+              // Get color based on price using the same method as other views
+              let color = this._getColorForPrice(d.price_per_kwh, min, max);
+              
+              // Add green overlay for cheap periods
+              const cheapOverlay = isCheap ? 'linear-gradient(rgba(0, 212, 170, 0.3), rgba(0, 212, 170, 0.3)), ' : '';
+              
+              const time = new Date(d.start_time);
+              const timeStr = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
+              const priceStr = ((d.price_per_kwh * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
+              
+              return html`
+                <div 
+                  class="block ${isCurrent ? 'current' : ''}" 
+                  style="background: ${cheapOverlay}${color};"
+                  @mouseenter=${(e) => this._showTooltip(e, timeStr, priceStr, currency)}
+                  @mousemove=${(e) => this._moveTooltip(e)}
+                ></div>
+              `;
+            })}
+        </div>
+        
+        <div class="blocks-time-labels">
+          ${data.map((d, i) => {
+            const time = new Date(d.start_time);
+            const hour = time.getHours();
+            const showLabel = hour % 4 === 0;
+            return html`
+              <div class="time-label">${showLabel ? String(hour).padStart(2, '0') : ''}</div>
+            `;
+          })}
+        </div>
+      </div>
+    `;
+  }
+
+  _hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 0, g: 0, b: 0 };
+  }
+
   _getCheapIntervalsForBar(data, dataIntervalls) {
     if (!dataIntervalls || Object.keys(dataIntervalls).length === 0) return [];
     
@@ -1635,12 +1808,11 @@ class PriceTimelineCard extends LitElement {
   }
 
   _positionTooltip(e, tooltip) {
-    const rect = e.target.getBoundingClientRect();
     const tooltipRect = tooltip.getBoundingClientRect();
     
-    // Position above the element, centered
-    let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
-    let top = rect.top - tooltipRect.height - 8;
+    // Use mouse position for tooltip placement
+    let left = e.clientX - (tooltipRect.width / 2);
+    let top = e.clientY - tooltipRect.height - 12;
     
     // Keep within viewport
     if (left < 10) left = 10;
@@ -1649,7 +1821,7 @@ class PriceTimelineCard extends LitElement {
     }
     if (top < 10) {
       // If no space above, show below
-      top = rect.bottom + 8;
+      top = e.clientY + 12;
     }
     
     tooltip.style.left = `${left}px`;
@@ -1737,6 +1909,7 @@ class PriceTimelineCard extends LitElement {
 
     
     let cardContent;
+    console.log('Price Timeline Card - View mode:', this.config.view);
     switch (this.config.view) {
       case "timeline":
         cardContent = this._renderTimeline(data, currentIndex, avg, lang);
@@ -1747,10 +1920,15 @@ class PriceTimelineCard extends LitElement {
       case "bar":
         cardContent = this._renderBar(data, dataIntervalls, currentIndex, avg, lang);
         break;
+      case "blocks":
+        console.log('Rendering blocks view');
+        cardContent = this._renderBlocks(data, dataIntervalls, currentIndex, avg, lang);
+        break;
       case "graph":
         cardContent = this._renderChart(data, dataIntervalls, currentIndex, avg, lang);
         break;
       default:
+        console.log('No view specified, defaulting to timeline');
         cardContent = this._renderTimeline(data, currentIndex, avg, lang);
     }
 
@@ -1886,6 +2064,7 @@ class PriceTimelineEditor extends LitElement {
                 options: [
                   { value: "timeline", label: "Timeline" },
                   { value: "bar", label: "Bar" },
+                  { value: "blocks", label: "Blocks" },
                   { value: "circle", label: "Circle" },
                   { value: "graph", label: "Graph" },
                 ],
@@ -1896,8 +2075,8 @@ class PriceTimelineEditor extends LitElement {
         ],
       },
       
-      // Period Settings
-      {
+      // Period Settings (not for graph - it always shows both days)
+      ...(mode !== "graph" ? [{
         name: "navigation_settings",
         type: "expandable",
         title: localize("editor_navigation_settings", lang),
@@ -1916,7 +2095,7 @@ class PriceTimelineEditor extends LitElement {
             },
           },
         ],
-      },
+      }] : []),
       
       // Price Optimization
       {
@@ -1959,6 +2138,9 @@ class PriceTimelineEditor extends LitElement {
               },
             },
           },
+          ...(mode === "graph" ? [
+            { name: "gradient_fill", selector: { boolean: {} } },
+          ] : []),
         ],
       },
     ];
@@ -1982,6 +2164,7 @@ class PriceTimelineEditor extends LitElement {
       appearance_settings: {
         theme: this._config.appearance_settings?.theme ?? "light",
         color_scheme: this._config.appearance_settings?.color_scheme ?? "default",
+        ...(mode === "graph" ? { gradient_fill: this._config.appearance_settings?.gradient_fill ?? false } : {}),
       },
     };
 

@@ -33,6 +33,8 @@ export default {
   editor_currency_desc: "Angiv egen valuta",
   editor_color_scheme_label: "Farveskema",
   editor_color_scheme_desc: "Vælg hvordan priser farves",
+  editor_gradient_fill_label: "Gradientfyldning",
+  editor_gradient_fill_desc: "Vis en farvet gradientfyldning under graflinjen",
   editor_day_switch_label: "Dagskifter",
   editor_day_switch_desc: "Viser eller skjuler dagskifteren",
   editor_slider_label: "Skyder",
