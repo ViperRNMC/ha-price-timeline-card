@@ -489,7 +489,23 @@ class PriceTimelineCard extends LitElement {
   }
 
   _getDataForOffset(entity, offset = 0) {
-    const allData = entity?.attributes?.data || [];
+    // Support both formats: Tibber (data array) and Frank Energie (prices array)
+    let allData = entity?.attributes?.data || entity?.attributes?.prices || [];
+    
+    // Normalize Frank Energie format to Tibber format
+    allData = allData.map(item => {
+      if (item.from && item.till && item.price !== undefined) {
+        // Frank Energie format
+        return {
+          start_time: item.from,
+          end_time: item.till,
+          price_per_kwh: item.price
+        };
+      }
+      // Already in Tibber format
+      return item;
+    });
+    
     if (offset === 2) {
       const now = new Date();
       const yesterday = new Date(now);
@@ -694,13 +710,17 @@ class PriceTimelineCard extends LitElement {
       const result = {};
       this.config.cheap_time_sources.forEach((entityId) => {
         const entity = this._hass.states[entityId];
-        if (!entity || !entity.attributes || !Array.isArray(entity.attributes.data)) return;
+        
+        // Support both formats: Tibber (data array) and Frank Energie (prices array)
+        const dataArray = entity?.attributes?.data || entity?.attributes?.prices || [];
+        if (!entity || !entity.attributes || !Array.isArray(dataArray)) return;
     
         const name = entity.attributes.friendly_name || entityId;
     
-        entity.attributes.data.forEach((item) => {
-          const start = item.start_time;
-          const end = item.end_time;
+        dataArray.forEach((item) => {
+          // Support both formats
+          const start = item.start_time || item.from;
+          const end = item.end_time || item.till;
     
           const dateKey = start.substring(0, 10); // "YYYY-MM-DD"
     
@@ -1318,8 +1338,8 @@ class PriceTimelineCard extends LitElement {
       avg = parseFloat(avgTemp);
     }
 
-    // no data attribute
-    if (!entity || !entity.attributes?.data) {
+    // no data attribute - check for both data and prices attributes (Frank Energie support)
+    if (!entity || (!entity.attributes?.data && !entity.attributes?.prices)) {
       return html`<ha-card>${this._renderNoAttributes(lang)}</ha-card>`;
     }
 
