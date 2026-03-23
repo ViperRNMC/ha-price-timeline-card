@@ -33,6 +33,8 @@ export default {
   editor_currency_desc: "Eigene Währung angeben",
   editor_color_scheme_label: "Farbschema",
   editor_color_scheme_desc: "Wählen Sie, wie Preise eingefärbt werden",
+  editor_gradient_fill_label: "Farbverlauf-Füllung",
+  editor_gradient_fill_desc: "Zeigt eine farbige Verlaufsfüllung unter der Diagrammlinie",
   editor_day_switch_label: "Tag Umschalter",
   editor_day_switch_desc: "Blendet den Tag Umschalter ein oder aus",
   editor_slider_label: "Schieberegler",

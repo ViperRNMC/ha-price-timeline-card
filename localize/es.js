@@ -35,6 +35,8 @@ export default {
   editor_currency_desc: "Especifique una moneda personalizada",
   editor_color_scheme_label: "Esquema de colores",
   editor_color_scheme_desc: "Elija cómo se colorean los precios",
+  editor_gradient_fill_label: "Relleno degradado",
+  editor_gradient_fill_desc: "Mostrar un relleno degradado de color bajo la línea del gráfico",
   editor_day_switch_label: "Conmutador de día",
   editor_day_switch_desc: "Muestra u oculta el conmutador de día",
   editor_cheap_times_label: "Tiempos económicos",

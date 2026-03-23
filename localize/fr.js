@@ -35,6 +35,8 @@ export default {
   editor_currency_desc: "Indiquez une devise personnalisée",
   editor_color_scheme_label: "Schéma de couleurs",
   editor_color_scheme_desc: "Choisissez comment les prix sont colorés",
+  editor_gradient_fill_label: "Remplissage en dégradé",
+  editor_gradient_fill_desc: "Afficher un remplissage coloré en dégradé sous la ligne du graphique",
   editor_day_switch_label: "Commutateur de jour",
   editor_day_switch_desc: "Affiche ou masque le commutateur de jour",
   editor_cheap_times_label: "Heures avantageuses",

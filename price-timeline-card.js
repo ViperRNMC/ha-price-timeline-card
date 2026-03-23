@@ -227,6 +227,16 @@ class PriceTimelineCard extends LitElement {
               position:relative;
             }
 
+            .slot:first-child {
+              border-top-left-radius:5px;
+              border-bottom-left-radius:5px;
+            }
+
+            .slot:last-child {
+              border-top-right-radius:5px;
+              border-bottom-right-radius:5px;
+            }
+
             .slot.marker::after {
               content:"";
               position:absolute;
@@ -249,6 +259,7 @@ class PriceTimelineCard extends LitElement {
             .scale {
               display:grid;
               grid-template-columns:repeat(25,1fr);
+              gap:0;
               font-size:12px;
               color:var(--card-subtle);
               margin-top:6px;
@@ -268,7 +279,12 @@ class PriceTimelineCard extends LitElement {
               height:4px;
               border-radius:50%;
               background:var(--card-dot);
-              margin-bottom:4px;
+              margin-bottom:5px;
+            }
+
+            .scale .tick:first-child .dot,
+            .scale .tick:last-child .dot {
+              border-radius:50%;
             }
 
             .scale .dot.faded {
@@ -466,22 +482,212 @@ class PriceTimelineCard extends LitElement {
               border-top: 1px solid rgba(120,120,120, 0.08);
             }
             
+            /* --- Bar View --- */
+            .bar-container {
+              padding: 8px 0;
+            }
+            
+            .bar-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 12px;
+            }
+            
+            .bar-title {
+              font-size: 18px;
+              font-weight: 600;
+            }
+            
+            .bar-current-price {
+              font-size: 16px;
+              font-weight: 600;
+            }
+            
+            .bars-wrapper {
+              position: relative;
+              display: flex;
+              gap: 2px;
+              height: 80px;
+              align-items: flex-end;
+              margin: 16px 0;
+            }
+            
+            .bar {
+              flex: 1;
+              position: relative;
+              border-radius: 3px 3px 0 0;
+              transition: opacity 0.2s;
+              min-width: 8px;
+            }
+            
+            .bar.current {
+              position: relative;
+            }
+            
+            .bar.current::before {
+              content: '';
+              position: absolute;
+              top: -12px;
+              left: 50%;
+              transform: translateX(-50%);
+              width: 0;
+              height: 0;
+              border-left: 6px solid transparent;
+              border-right: 6px solid transparent;
+              border-top: 8px solid var(--primary-color);
+            }
+            
+            .bar-labels {
+              display: flex;
+              gap: 2px;
+              font-size: 10px;
+              color: var(--card-subtle);
+              margin-top: 4px;
+            }
+            
+            .bar-label {
+              flex: 1;
+              text-align: center;
+              min-width: 8px;
+            }
+            
+            .bar-label.highlight {
+              font-weight: 600;
+              color: var(--card-text);
+            }
+            
+            .cheap-highlight {
+              position: absolute;
+              bottom: 0;
+              height: 100%;
+              background: var(--cheap-highlight-color, var(--success-color, var(--state-icon-active-color, var(--green-color, var(--turquoise)))));
+              opacity: 0.15;
+              border-radius: 4px;
+              pointer-events: none;
+            }
+            
+            .bar-footer {
+              display: flex;
+              justify-content: space-between;
+              font-size: 12px;
+              color: var(--card-subtle);
+              margin-top: 8px;
+            }
+            
+            /* Blocks View */
+            .blocks-container {
+              display: flex;
+              flex-direction: column;
+              gap: 2px;
+              padding: 10px;
+              background: var(--card-background-color, #fff);
+            }
+            
+            .blocks-row {
+              display: flex;
+              gap: 2px;
+            }
+            
+            .block {
+              flex: 1;
+              height: 20px;
+              border-radius: 4px;
+              position: relative;
+              cursor: pointer;
+              transition: transform 0.2s, box-shadow 0.2s;
+            }
+            
+            .block:hover {
+              transform: scale(1.05);
+              box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+              z-index: 10;
+            }
+            
+            .block.current::before {
+              content: '';
+              position: absolute;
+              top: -12px;
+              left: 50%;
+              transform: translateX(-50%);
+              width: 0;
+              height: 0;
+              border-left: 6px solid transparent;
+              border-right: 6px solid transparent;
+              border-top: 8px solid var(--primary-color);
+            }
+            
+            .blocks-time-labels {
+              display: flex;
+              gap: 2px;
+              font-size: 10px;
+              color: var(--card-subtle);
+              margin-top: 4px;
+            }
+            
+            .blocks-time-labels .time-label {
+              flex: 1;
+              text-align: center;
+            }
+            
+            /* --- Tooltip --- */
+            .price-tooltip {
+              position: fixed;
+              background: rgba(0, 0, 0, 0.9);
+              color: white;
+              padding: 8px 12px;
+              border-radius: 6px;
+              font-size: 12px;
+              pointer-events: none;
+              z-index: 10000;
+              white-space: nowrap;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+              display: none;
+            }
+            
+            .price-tooltip.visible {
+              display: block;
+            }
+            
+            .price-tooltip::after {
+              content: '';
+              position: absolute;
+              top: 100%;
+              left: 50%;
+              transform: translateX(-50%);
+              border: 6px solid transparent;
+              border-top-color: rgba(0, 0, 0, 0.9);
+            }
                         
         `;
   }
 
   setConfig(config) {
     if (!config.price) throw new Error(localize("missing_price", "en"));
-    this.config = config;
+    
+    // Only reset _dayOffset if this is the initial config or price entity changed
+    const shouldResetOffset = !this.config || this.config.price !== config.price;
+    
+    this.config = {
+      ...config,
+      display_settings: {
+        graph_hours: 48,
+        graph_start_from: false,
+        ...config.display_settings,
+      },
+    };
     this.theme = this.config.appearance_settings?.theme || "light";
     this.colorScheme = this.config.appearance_settings?.color_scheme || "default";
     this.selectedIndex = undefined;
-    switch (this.config.navigation_settings?.start_view) {
-      case "tomorrow":
-        this._dayOffset = 1;
-        break;
-      default:
-        this._dayOffset = 0;
+    
+    if (shouldResetOffset) {
+      switch (this.config.navigation_settings?.start_view) {
+        case "tomorrow":
+          this._dayOffset = 1;
+          break;
+        default:
+          this._dayOffset = 0;
+      }
     }
   }
 
@@ -752,19 +958,24 @@ class PriceTimelineCard extends LitElement {
 
   _getFutureCheapPhases(phasesObj) {
     const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStr = _localYYYYMMDD(today);
     const ONE_HOUR = 60 * 60 * 1000;
     const result = {};
 
     for (const [day, phases] of Object.entries(phasesObj)) {
       const filtered = [];
+      const isToday = day === todayStr;
 
       for (const phase of phases) {
         const start = new Date(phase.start);
         const end = new Date(phase.end);
         const duration = end - start;
 
-        if (end > now && duration >= ONE_HOUR) {
+        // Show all phases from today (even past ones), but only future phases for other days
+        const shouldShow = isToday ? duration >= ONE_HOUR : (end > now && duration >= ONE_HOUR);
 
+        if (shouldShow) {
           filtered.push({
             start: _localISODateTime(start),
             end: _localISODateTime(end),
@@ -960,6 +1171,18 @@ class PriceTimelineCard extends LitElement {
     }).join("");
     svg.prepend(grad);
 
+    // Create filled area under the line (if gradient_fill is enabled)
+    if (this.config.appearance_settings?.gradient_fill) {
+      const areaPath = d + ` L ${width - margin.right},${margin.top + innerH} L ${margin.left},${margin.top + innerH} Z`;
+      const area = document.createElementNS(svgNS, "path");
+      area.setAttribute("d", areaPath);
+      area.setAttribute("fill", "url(#lineGradient)");
+      area.setAttribute("fill-opacity", "0.15");
+      area.setAttribute("stroke", "none");
+      svg.appendChild(area);
+    }
+
+    // Line on top of the fill
     const path = document.createElementNS(svgNS, "path");
     path.setAttribute("d", d);
     path.setAttribute("fill", "none");
@@ -1119,6 +1342,7 @@ class PriceTimelineCard extends LitElement {
    // phases
     let index = 0;
     if (this.config.price_optimization?.cheap_times === true) {
+      const cheapHighlightColor = this._getCheapHighlightColor();
       const labelsByStart = {}; 
     
       for (const [day, intervals] of Object.entries(dataIntervalls)) {
@@ -1133,7 +1357,7 @@ class PriceTimelineCard extends LitElement {
           rect.setAttribute("y", margin.top);
           rect.setAttribute("width", xEnd - xStart);
           rect.setAttribute("height", height - margin.bottom - margin.top);
-          rect.setAttribute("fill", "var(--turquoise)");
+          rect.setAttribute("fill", cheapHighlightColor);
           rect.setAttribute("fill-opacity", "0.2");
           svg.insertBefore(rect, svg.firstChild);
     
@@ -1172,6 +1396,37 @@ class PriceTimelineCard extends LitElement {
 
     markMinMax(svg, pts, todayStart, todayEnd);
     markMinMax(svg, pts, tomorrowStart, tomorrowEnd);
+
+    // Add invisible hover areas for tooltips
+    data.forEach((d, i) => {
+      const startTime = new Date(d.start_time);
+      const endTime = new Date(d.end_time || new Date(startTime.getTime() + 3600000));
+      const xStart = xFor(startTime);
+      const xEnd = xFor(endTime);
+      const rect = document.createElementNS(svgNS, "rect");
+      rect.setAttribute("x", xStart);
+      rect.setAttribute("y", margin.top);
+      rect.setAttribute("width", xEnd - xStart);
+      rect.setAttribute("height", innerH);
+      rect.setAttribute("fill", "transparent");
+      rect.setAttribute("cursor", "pointer");
+      rect.setAttribute("data-index", i);
+      
+      const timeStr = `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}`;
+      const priceStr = ((d.price_per_kwh * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
+      
+      rect.addEventListener("mouseenter", (e) => {
+        this._showTooltip(e, timeStr, priceStr, this._getCurrency(lang));
+      });
+      rect.addEventListener("mousemove", (e) => {
+        this._moveTooltip(e);
+      });
+      rect.addEventListener("mouseleave", () => {
+        this._hideTooltip();
+      });
+      
+      svg.appendChild(rect);
+    });
 
     return svg;
 
@@ -1329,17 +1584,21 @@ class PriceTimelineCard extends LitElement {
                 <div style="text-align: right; font-weight: bold;">${format(min)} - ${format(max)}</div>
                 </div>
             </div>
-            <div class="timeline">
+            <div class="timeline" @mouseleave=${this._hideTooltip}>
                 ${data.map((d, i) => {
       const color = this._getColorForPrice(d.price_per_kwh, min, max);
       const faded = i < currentIndex ? "faded" : "";
       const marker = (i === currentIndex && (currentIndex != 0 || this._dayOffset === 0)) ? "marker" : "";
-      const prevColor = i > 0 ? this._getColorForPrice(data[i - 1].price_per_kwh, min, max) : null;
-      const nextColor = i < data.length - 1 ? this._getColorForPrice(data[i + 1].price_per_kwh, min, max) : null;
-      let borderRadius = "";
-      if (prevColor !== color) borderRadius += "border-top-left-radius:10px; border-bottom-left-radius:10px;";
-      if (nextColor !== color) borderRadius += "border-top-right-radius:10px; border-bottom-right-radius:10px;";
-      return html`<div class="slot ${faded} ${marker}" style="background:${color};${borderRadius};--progress:${i === currentIndex ? progress : 0}"></div>`;
+      const time = new Date(d.start_time);
+      const timeStr = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
+      const priceStr = ((d.price_per_kwh * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
+      
+      return html`<div 
+        class="slot ${faded} ${marker}" 
+        style="background:${color};--progress:${i === currentIndex ? progress : 0}"
+        @mouseenter=${(e) => this._showTooltip(e, timeStr, priceStr, this._getCurrency(lang))}
+        @mousemove=${(e) => this._moveTooltip(e)}
+      ></div>`;
     })}
             </div>
             <div class="scale">
@@ -1392,6 +1651,286 @@ class PriceTimelineCard extends LitElement {
   }
 
   // --------------------
+  //BAR
+  //---------------------
+  _renderBar(data, dataIntervalls, currentIndex, avg, lang) {
+    const { min, max } = this._getPriceRange(data);
+    const currentPrice = data[currentIndex].price_per_kwh;
+    const formattedPrice = ((currentPrice * 100).toFixed(1))
+      .replace('.', ',')
+      .replace(/,0$/, '');
+
+    // Calculate cheap intervals for highlighting
+    const cheapFlags = this.config.price_optimization?.cheap_times 
+      ? this._getCheapIntervalsForBar(data, dataIntervalls) 
+      : [];
+
+    return html`
+      <div class="bar-container">
+        <div class="bar-header">
+          <div class="bar-title">${localize("label_price", lang)}</div>
+          <div class="bar-current-price">${formattedPrice} ${this._getCurrency(lang)}</div>
+        </div>
+        
+        <div class="bars-wrapper" @mouseleave=${this._hideTooltip}>
+          ${data.map((d, i) => {
+            const height = ((d.price_per_kwh - min) / (max - min || 1)) * 100;
+            const color = this._getColorForPrice(d.price_per_kwh, min, max);
+            const isCurrent = i === currentIndex;
+            const time = new Date(d.start_time);
+            const timeStr = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
+            const priceStr = ((d.price_per_kwh * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
+            
+            return html`
+              <div 
+                class="bar ${isCurrent ? 'current' : ''}" 
+                style="height: ${height}%; background-color: ${color};"
+                @mouseenter=${(e) => this._showTooltip(e, timeStr, priceStr, this._getCurrency(lang))}
+                @mousemove=${(e) => this._moveTooltip(e)}
+              ></div>
+            `;
+          })}
+          ${cheapFlags.map(interval => html`
+            <div 
+              class="cheap-highlight" 
+              style="left: ${(interval.start / data.length) * 100}%; width: ${((interval.end - interval.start + 1) / data.length) * 100}%"
+            ></div>
+          `)}
+        </div>
+        
+        <div class="bar-labels">
+          ${data.map((d, i) => {
+            const time = new Date(d.start_time);
+            const hour = time.getHours();
+            const showLabel = i === 0 || hour % 3 === 0 || i === data.length - 1;
+            return html`
+              <div class="bar-label ${i === currentIndex ? 'highlight' : ''}">
+                ${showLabel ? String(hour).padStart(2, '0') : ''}
+              </div>
+            `;
+          })}
+        </div>
+      </div>
+    `;
+  }
+
+  _renderBlocks(data, dataIntervalls, currentIndex, avg, lang) {
+    const currency = this._getCurrency(lang);
+    const now = new Date();
+    const cheapHighlightColor = this._getCheapHighlightColor();
+    
+    // Get min/max for color calculation
+    const prices = data.map(d => d.price_per_kwh);
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    
+    // Get cheap intervals
+    const cheapIntervals = this._getCheapIntervalsForBar(data, dataIntervalls);
+    const cheapSet = new Set();
+    cheapIntervals.forEach(interval => {
+      for (let i = interval.start; i <= interval.end; i++) {
+        cheapSet.add(i);
+      }
+    });
+    
+    return html`
+      <div class="blocks-container" @mouseleave=${() => this._hideTooltip()}>
+        <div class="blocks-row">
+          ${data.map((d, i) => {
+              const globalIndex = i;
+              const isCurrent = globalIndex === currentIndex;
+              const isCheap = cheapSet.has(globalIndex);
+              
+              // Get color based on price using the same method as other views
+              let color = this._getColorForPrice(d.price_per_kwh, min, max);
+              const cheapOutline = isCheap ? `inset 0 0 0 2px ${cheapHighlightColor}` : 'none';
+              
+              const time = new Date(d.start_time);
+              const timeStr = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
+              const priceStr = ((d.price_per_kwh * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
+              
+              return html`
+                <div 
+                  class="block ${isCurrent ? 'current' : ''}" 
+                  style="background: ${color}; box-shadow: ${cheapOutline};"
+                  @mouseenter=${(e) => this._showTooltip(e, timeStr, priceStr, currency)}
+                  @mousemove=${(e) => this._moveTooltip(e)}
+                ></div>
+              `;
+            })}
+        </div>
+        
+        <div class="blocks-time-labels">
+          ${data.map((d, i) => {
+            const time = new Date(d.start_time);
+            const hour = time.getHours();
+            const showLabel = hour % 4 === 0;
+            return html`
+              <div class="time-label">${showLabel ? String(hour).padStart(2, '0') : ''}</div>
+            `;
+          })}
+        </div>
+      </div>
+    `;
+  }
+
+  _hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 0, g: 0, b: 0 };
+  }
+
+  _getCheapIntervalsForBar(data, dataIntervalls) {
+    if (!dataIntervalls || Object.keys(dataIntervalls).length === 0) return [];
+    
+    const intervals = [];
+    for (const [day, phases] of Object.entries(dataIntervalls)) {
+      for (const phase of phases) {
+        const startTime = new Date(phase.start);
+        const endTime = new Date(phase.end);
+        
+        let startIdx = -1, endIdx = -1;
+        data.forEach((d, i) => {
+          const t = new Date(d.start_time);
+          if (t >= startTime && startIdx === -1) startIdx = i;
+          if (t < endTime) endIdx = i;
+        });
+        
+        if (startIdx !== -1 && endIdx !== -1) {
+          intervals.push({ start: startIdx, end: endIdx });
+        }
+      }
+    }
+    return intervals;
+  }
+
+  _getCheapHighlightColor() {
+    const configured = this.config?.price_optimization?.cheapest_hour_color || this.config?.cheapest_hour_color;
+    const uiColorMap = {
+      red: "#f44336",
+      pink: "#e91e63",
+      purple: "#9c27b0",
+      "deep-purple": "#673ab7",
+      indigo: "#3f51b5",
+      blue: "#2196f3",
+      "light-blue": "#03a9f4",
+      cyan: "#00bcd4",
+      teal: "#009688",
+      green: "#4caf50",
+      "light-green": "#8bc34a",
+      lime: "#cddc39",
+      yellow: "#ffeb3b",
+      amber: "#ffc107",
+      orange: "#ff9800",
+      "deep-orange": "#ff5722",
+      brown: "#795548",
+      grey: "#9e9e9e",
+      "blue-grey": "#607d8b",
+      black: "#000000",
+      white: "#ffffff",
+    };
+
+    if (typeof configured === "string") {
+      const trimmed = configured.trim();
+      const normalized = trimmed.toLowerCase().replace(/\s+/g, "-");
+      const resolved = uiColorMap[normalized] || trimmed;
+      if (resolved && window.CSS?.supports?.("color", resolved)) {
+        return resolved;
+      }
+      if (trimmed && window.CSS?.supports?.("color", trimmed)) {
+        return trimmed;
+      }
+    }
+    return "var(--cheap-highlight-color, var(--success-color, var(--state-icon-active-color, var(--green-color, var(--turquoise)))))";
+  }
+
+  _getGraphPeriodHours() {
+    const configured = this.config?.display_settings?.graph_hours ?? this.config?.graph_hours;
+    const parsed = Number(configured);
+    if (!Number.isFinite(parsed)) return 48;
+    return Math.max(1, Math.min(72, Math.round(parsed)));
+  }
+
+  _getGraphStartFrom() {
+    const configured = this.config?.display_settings?.graph_start_from ?? this.config?.graph_start_from;
+    return configured === true || configured === "now" ? "now" : "midnight";
+  }
+
+  _filterGraphDataByPeriod(data) {
+    if (!Array.isArray(data) || data.length === 0) return data;
+
+    const hours = this._getGraphPeriodHours();
+    const now = new Date();
+    const start = this._getGraphStartFrom() === "midnight"
+      ? new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      : now;
+    const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+
+    const futureData = data.filter((item) => {
+      const point = new Date(item.start_time);
+      return point >= start && point <= end;
+    });
+
+    // Fallback to original data if the configured time window has no entries.
+    return futureData.length > 0 ? futureData : data;
+  }
+
+  _showTooltip(e, time, price, currency) {
+    // Remove existing tooltip
+    this._hideTooltip();
+    
+    // Create new tooltip
+    const tooltip = document.createElement('div');
+    tooltip.className = 'price-tooltip visible';
+    tooltip.innerHTML = `<strong>${time}</strong> • ${price} ${currency}`;
+    tooltip.id = 'price-tooltip';
+    
+    // Add to shadow root
+    this.shadowRoot.appendChild(tooltip);
+    
+    // Position tooltip
+    this._positionTooltip(e, tooltip);
+  }
+
+  _positionTooltip(e, tooltip) {
+    const tooltipRect = tooltip.getBoundingClientRect();
+    
+    // Use mouse position for tooltip placement
+    let left = e.clientX - (tooltipRect.width / 2);
+    let top = e.clientY - tooltipRect.height - 12;
+    
+    // Keep within viewport
+    if (left < 10) left = 10;
+    if (left + tooltipRect.width > window.innerWidth - 10) {
+      left = window.innerWidth - tooltipRect.width - 10;
+    }
+    if (top < 10) {
+      // If no space above, show below
+      top = e.clientY + 12;
+    }
+    
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+  }
+
+  _moveTooltip(e) {
+    const tooltip = this.shadowRoot?.querySelector('#price-tooltip');
+    if (tooltip) {
+      this._positionTooltip(e, tooltip);
+    }
+  }
+
+  _hideTooltip() {
+    const tooltip = this.shadowRoot?.querySelector('#price-tooltip');
+    if (tooltip) {
+      tooltip.remove();
+    }
+  }
+
+  // --------------------
   //CHART
   //---------------------
   _renderChart(data, dataIntervalls, currentIndex, avg, lang) {
@@ -1430,7 +1969,11 @@ class PriceTimelineCard extends LitElement {
     }
 
     let offset = (this.config.view === "graph") ? 2 : this._dayOffset;
-    const data = this._getDataForOffset(entity, offset);
+    let data = this._getDataForOffset(entity, offset);
+
+    if (this.config.view === "graph") {
+      data = this._filterGraphDataByPeriod(data);
+    }
     //calculate average
     if (avg === undefined) {
       avg = this._calculateAveragePrice(data);
@@ -1445,9 +1988,10 @@ class PriceTimelineCard extends LitElement {
       return html`<ha-card>${this._renderNoPrices(lang)}</ha-card>`;
     }
 
-    const currentIndex = this.config.display_settings?.slider
+    const resolvedIndex = this.config.display_settings?.slider
       ? (typeof this.selectedIndex === "number" ? this.selectedIndex : this._getCurrentDataIndex(data, new Date()))
       : this._getCurrentDataIndex(data, new Date());
+    const currentIndex = Math.max(0, Math.min(data.length - 1, resolvedIndex));
 
     let dataIntervalls;
     if(this.config.cheap_time_sources){
@@ -1458,6 +2002,7 @@ class PriceTimelineCard extends LitElement {
 
     
     let cardContent;
+    console.log('Price Timeline Card - View mode:', this.config.view);
     switch (this.config.view) {
       case "timeline":
         cardContent = this._renderTimeline(data, currentIndex, avg, lang);
@@ -1465,10 +2010,18 @@ class PriceTimelineCard extends LitElement {
       case "circle":
         cardContent = this._renderCircle(data, currentIndex, avg, lang);
         break;
+      case "bar":
+        cardContent = this._renderBar(data, dataIntervalls, currentIndex, avg, lang);
+        break;
+      case "blocks":
+        console.log('Rendering blocks view');
+        cardContent = this._renderBlocks(data, dataIntervalls, currentIndex, avg, lang);
+        break;
       case "graph":
         cardContent = this._renderChart(data, dataIntervalls, currentIndex, avg, lang);
         break;
       default:
+        console.log('No view specified, defaulting to timeline');
         cardContent = this._renderTimeline(data, currentIndex, avg, lang);
     }
 
@@ -1532,6 +2085,8 @@ class PriceTimelineEditor extends LitElement {
       currency: "",
       display_settings: {
         slider: false,
+        graph_hours: 48,
+        graph_start_from: false,
       },
       navigation_settings: {
         day_switch: true,
@@ -1539,6 +2094,7 @@ class PriceTimelineEditor extends LitElement {
       },
       price_optimization: {
         cheap_times: false,
+        cheapest_hour_color: "",
       },
       appearance_settings: {
         theme: "light",
@@ -1603,6 +2159,8 @@ class PriceTimelineEditor extends LitElement {
                 mode: "dropdown",
                 options: [
                   { value: "timeline", label: "Timeline" },
+                  { value: "bar", label: "Bar" },
+                  { value: "blocks", label: "Blocks" },
                   { value: "circle", label: "Circle" },
                   { value: "graph", label: "Graph" },
                 ],
@@ -1610,15 +2168,19 @@ class PriceTimelineEditor extends LitElement {
             },
           },
           { name: "slider", selector: { boolean: {} } },
+          ...(mode === "graph" ? [
+            { name: "graph_start_from", selector: { boolean: {} } },
+            { name: "graph_hours", selector: { number: { min: 1, max: 72, step: 1, mode: "box" } } },
+          ] : []),
         ],
       },
       
-      // Navigation Settings (only for timeline/circle)
-      ...(mode === "circle" || mode === "timeline" ? [{
+      // Period Settings (not for graph - it always shows both days)
+      ...(mode !== "graph" ? [{
         name: "navigation_settings",
         type: "expandable",
         title: localize("editor_navigation_settings", lang),
-        icon: "mdi:navigation",
+        icon: "mdi:calendar-clock",
         schema: [
           { name: "day_switch", selector: { boolean: {} } },
           {
@@ -1643,6 +2205,10 @@ class PriceTimelineEditor extends LitElement {
         icon: "mdi:cash-clock",
         schema: [
           { name: "cheap_times", selector: { boolean: {} } },
+          {
+            name: "cheapest_hour_color",
+            selector: { ui_color: {} },
+          },
         ],
       },
       
@@ -1676,6 +2242,9 @@ class PriceTimelineEditor extends LitElement {
               },
             },
           },
+          ...(mode === "graph" ? [
+            { name: "gradient_fill", selector: { boolean: {} } },
+          ] : []),
         ],
       },
     ];
@@ -1688,6 +2257,10 @@ class PriceTimelineEditor extends LitElement {
       display_settings: {
         view_mode: mode,
         slider: this._config.display_settings?.slider ?? false,
+        ...(mode === "graph" ? {
+          graph_start_from: this._config.display_settings?.graph_start_from ?? false,
+          graph_hours: this._config.display_settings?.graph_hours ?? 48,
+        } : {}),
       },
       navigation_settings: {
         day_switch: this._config.navigation_settings?.day_switch ?? true,
@@ -1695,10 +2268,12 @@ class PriceTimelineEditor extends LitElement {
       },
       price_optimization: {
         cheap_times: this._config.price_optimization?.cheap_times ?? false,
+        cheapest_hour_color: this._config.price_optimization?.cheapest_hour_color ?? "",
       },
       appearance_settings: {
         theme: this._config.appearance_settings?.theme ?? "light",
         color_scheme: this._config.appearance_settings?.color_scheme ?? "default",
+        ...(mode === "graph" ? { gradient_fill: this._config.appearance_settings?.gradient_fill ?? false } : {}),
       },
     };
 
