@@ -832,6 +832,17 @@ class PriceTimelineCard extends LitElement {
     return (Math.round(Math.round(price_per_kwh * 100 * 10) / 10) / 100);
   }
 
+  _getDisplayPrice(price_per_kwh) {
+    const calc = this.config?.price_calculation;
+    if (!calc?.enabled) return price_per_kwh;
+    const display = calc.display ?? "market";
+    if (display === "market") return price_per_kwh;
+    const isGrid = display === "grid";
+    const addition = isGrid ? (calc.grid_addition ?? 0) : (calc.feed_in_addition ?? 0);
+    const tax = isGrid ? (calc.grid_tax ?? 0) : (calc.feed_in_tax ?? 0);
+    return (price_per_kwh + addition) * (1 + tax / 100);
+  }
+
   _getColorForPrice(price, min, max) {
     const schemes = PriceTimelineCard.colorSchemes;
     const schemeName = this.colorScheme || 'default';
@@ -860,7 +871,7 @@ class PriceTimelineCard extends LitElement {
     let max = Number.NEGATIVE_INFINITY;
 
     for (const item of data) {
-      const price = parseFloat(item.price_per_kwh);
+      const price = this._getDisplayPrice(parseFloat(item.price_per_kwh));
       if (isNaN(price)) continue;
       if (price < min) min = price;
       if (price > max) max = price;
@@ -1047,7 +1058,7 @@ class PriceTimelineCard extends LitElement {
     const rawData = data;
     const parsed = rawData.map(d => ({
       time: new Date(d.start_time),
-      cent: d.price_per_kwh * 100
+      cent: this._getDisplayPrice(d.price_per_kwh) * 100
     }));
     parsed.sort((a, b) => a.time - b.time);
 
@@ -1264,11 +1275,11 @@ class PriceTimelineCard extends LitElement {
     if (now >= start && now <= end) {
 
       const cx = xFor(new Date(data[currentIndex].start_time))
-      const cy = yFor(data[currentIndex].price_per_kwh * 100)
+      const cy = yFor(this._getDisplayPrice(data[currentIndex].price_per_kwh) * 100)
 
       const minPrice = Math.min(...parsed.map(pt => pt.cent)) / 100;
       const maxPrice = Math.max(...parsed.map(pt => pt.cent)) / 100;
-      const currentColor = this._getColorForPrice(data[currentIndex].price_per_kwh, minPrice, maxPrice);
+      const currentColor = this._getColorForPrice(this._getDisplayPrice(data[currentIndex].price_per_kwh), minPrice, maxPrice);
       const circle = document.createElementNS(svgNS, "circle");
       circle.setAttribute("cx", cx);
       circle.setAttribute("cy", cy);
@@ -1413,7 +1424,7 @@ class PriceTimelineCard extends LitElement {
       rect.setAttribute("data-index", i);
       
       const timeStr = `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}`;
-      const priceStr = ((d.price_per_kwh * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
+      const priceStr = ((this._getDisplayPrice(d.price_per_kwh) * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
       
       rect.addEventListener("mouseenter", (e) => {
         this._showTooltip(e, timeStr, priceStr, this._getCurrency(lang));
@@ -1556,7 +1567,7 @@ class PriceTimelineCard extends LitElement {
     const minutes = now.getMinutes();
     const progress = slotMinutes === 60 ? (minutes / slotMinutes) : ((minutes % slotMinutes) / 15);
 
-    const currentPrice = data[currentIndex].price_per_kwh;
+    const currentPrice = this._getDisplayPrice(data[currentIndex].price_per_kwh);
     const formattedPriceTL = ((currentPrice * 100).toFixed(1))
       .replace('.', ',')
       .replace(/,0$/, '');
@@ -1586,12 +1597,12 @@ class PriceTimelineCard extends LitElement {
             </div>
             <div class="timeline" @mouseleave=${this._hideTooltip}>
                 ${data.map((d, i) => {
-      const color = this._getColorForPrice(d.price_per_kwh, min, max);
+      const color = this._getColorForPrice(this._getDisplayPrice(d.price_per_kwh), min, max);
       const faded = i < currentIndex ? "faded" : "";
       const marker = (i === currentIndex && (currentIndex != 0 || this._dayOffset === 0)) ? "marker" : "";
       const time = new Date(d.start_time);
       const timeStr = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
-      const priceStr = ((d.price_per_kwh * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
+      const priceStr = ((this._getDisplayPrice(d.price_per_kwh) * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
       
       return html`<div 
         class="slot ${faded} ${marker}" 
@@ -1619,12 +1630,12 @@ class PriceTimelineCard extends LitElement {
   //---------------------
   _renderCircle(data, currentIndex, avg, lang) {
     const currentData = data[currentIndex];
-    let currentPrice = currentData.price_per_kwh;
+    let currentPrice = this._getDisplayPrice(currentData.price_per_kwh);
     const formattedPrice = (currentPrice * 100).toFixed(0);
     currentPrice = this._roundCent(currentPrice);
     const radius = 65;
-    const minPrice = Math.min(...data.map(d => d.price_per_kwh));
-    const maxPrice = Math.max(...data.map(d => d.price_per_kwh));
+    const minPrice = Math.min(...data.map(d => this._getDisplayPrice(d.price_per_kwh)));
+    const maxPrice = Math.max(...data.map(d => this._getDisplayPrice(d.price_per_kwh)));
     const rawRatio = (currentPrice - minPrice) / (maxPrice - minPrice || 1);
     const ratio = 0.05 + rawRatio * 0.9;
     const circumference = 2 * Math.PI * radius;
@@ -1655,7 +1666,7 @@ class PriceTimelineCard extends LitElement {
   //---------------------
   _renderBar(data, dataIntervalls, currentIndex, avg, lang) {
     const { min, max } = this._getPriceRange(data);
-    const currentPrice = data[currentIndex].price_per_kwh;
+    const currentPrice = this._getDisplayPrice(data[currentIndex].price_per_kwh);
     const formattedPrice = ((currentPrice * 100).toFixed(1))
       .replace('.', ',')
       .replace(/,0$/, '');
@@ -1674,12 +1685,12 @@ class PriceTimelineCard extends LitElement {
         
         <div class="bars-wrapper" @mouseleave=${this._hideTooltip}>
           ${data.map((d, i) => {
-            const height = ((d.price_per_kwh - min) / (max - min || 1)) * 100;
-            const color = this._getColorForPrice(d.price_per_kwh, min, max);
+            const height = ((this._getDisplayPrice(d.price_per_kwh) - min) / (max - min || 1)) * 100;
+            const color = this._getColorForPrice(this._getDisplayPrice(d.price_per_kwh), min, max);
             const isCurrent = i === currentIndex;
             const time = new Date(d.start_time);
             const timeStr = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
-            const priceStr = ((d.price_per_kwh * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
+            const priceStr = ((this._getDisplayPrice(d.price_per_kwh) * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
             
             return html`
               <div 
@@ -1720,7 +1731,7 @@ class PriceTimelineCard extends LitElement {
     const cheapHighlightColor = this._getCheapHighlightColor();
     
     // Get min/max for color calculation
-    const prices = data.map(d => d.price_per_kwh);
+    const prices = data.map(d => this._getDisplayPrice(d.price_per_kwh));
     const min = Math.min(...prices);
     const max = Math.max(...prices);
     
@@ -1742,12 +1753,12 @@ class PriceTimelineCard extends LitElement {
               const isCheap = cheapSet.has(globalIndex);
               
               // Get color based on price using the same method as other views
-              let color = this._getColorForPrice(d.price_per_kwh, min, max);
+              let color = this._getColorForPrice(this._getDisplayPrice(d.price_per_kwh), min, max);
               const cheapOutline = isCheap ? `inset 0 0 0 2px ${cheapHighlightColor}` : 'none';
               
               const time = new Date(d.start_time);
               const timeStr = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
-              const priceStr = ((d.price_per_kwh * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
+              const priceStr = ((this._getDisplayPrice(d.price_per_kwh) * 100).toFixed(1)).replace('.', ',').replace(/,0$/, '');
               
               return html`
                 <div 
@@ -1934,11 +1945,11 @@ class PriceTimelineCard extends LitElement {
   //CHART
   //---------------------
   _renderChart(data, dataIntervalls, currentIndex, avg, lang) {
-    const circleColor = data[currentIndex].price_per_kwh > avg ? "var(--orange)" : "var(--turquoise)";
+    const circleColor = this._getDisplayPrice(data[currentIndex].price_per_kwh) > avg ? "var(--orange)" : "var(--turquoise)";
     return html`
                 <div>
                     <h3 style="margin: 0px">${localize("label_average_price", lang)}: <span id="avgText">${(avg * 100).toFixed(1)} ${this._getCurrency(lang)}</span></h3>
-                    <h5 style="margin: 0px; color:${circleColor}">${localize("label_price", lang)}: <span>${(data[currentIndex].price_per_kwh * 100).toFixed(1)} ${this._getCurrency(lang)} (${this._getDataTimeLabel(data, currentIndex)})</span></h5>
+                    <h5 style="margin: 0px; color:${circleColor}">${localize("label_price", lang)}: <span>${(this._getDisplayPrice(data[currentIndex].price_per_kwh) * 100).toFixed(1)} ${this._getCurrency(lang)} (${this._getDataTimeLabel(data, currentIndex)})</span></h5>
                 </div>
                 ${this._generateChart(data, dataIntervalls, currentIndex, avg * 100, lang)}
           `
@@ -2096,6 +2107,14 @@ class PriceTimelineEditor extends LitElement {
         cheap_times: false,
         cheapest_hour_color: "",
       },
+      price_calculation: {
+        enabled: false,
+        display: "market",
+        grid_addition: 0,
+        grid_tax: 0,
+        feed_in_addition: 0,
+        feed_in_tax: 0,
+      },
       appearance_settings: {
         theme: "light",
         color_scheme: "default",
@@ -2247,6 +2266,34 @@ class PriceTimelineEditor extends LitElement {
           ] : []),
         ],
       },
+
+      // Price Calculation
+      {
+        name: "price_calculation",
+        type: "expandable",
+        title: localize("editor_price_calculation", lang),
+        icon: "mdi:calculator",
+        schema: [
+          { name: "enabled", selector: { boolean: {} } },
+          {
+            name: "display",
+            selector: {
+              select: {
+                mode: "dropdown",
+                options: [
+                  { value: "market", label: localize("editor_price_calc_market", lang) },
+                  { value: "grid", label: localize("editor_price_calc_grid", lang) },
+                  { value: "feed_in", label: localize("editor_price_calc_feed_in", lang) },
+                ],
+              },
+            },
+          },
+          { name: "grid_addition", selector: { number: { min: -2, max: 2, step: 0.001, mode: "box", unit_of_measurement: "€/kWh" } } },
+          { name: "grid_tax", selector: { number: { min: 0, max: 100, step: 0.1, mode: "box", unit_of_measurement: "%" } } },
+          { name: "feed_in_addition", selector: { number: { min: -2, max: 2, step: 0.001, mode: "box", unit_of_measurement: "€/kWh" } } },
+          { name: "feed_in_tax", selector: { number: { min: 0, max: 100, step: 0.1, mode: "box", unit_of_measurement: "%" } } },
+        ],
+      },
     ];
 
     // Structure data to match expandable sections
@@ -2269,6 +2316,14 @@ class PriceTimelineEditor extends LitElement {
       price_optimization: {
         cheap_times: this._config.price_optimization?.cheap_times ?? false,
         cheapest_hour_color: this._config.price_optimization?.cheapest_hour_color ?? "",
+      },
+      price_calculation: {
+        enabled: this._config.price_calculation?.enabled ?? false,
+        display: this._config.price_calculation?.display ?? "market",
+        grid_addition: this._config.price_calculation?.grid_addition ?? 0,
+        grid_tax: this._config.price_calculation?.grid_tax ?? 0,
+        feed_in_addition: this._config.price_calculation?.feed_in_addition ?? 0,
+        feed_in_tax: this._config.price_calculation?.feed_in_tax ?? 0,
       },
       appearance_settings: {
         theme: this._config.appearance_settings?.theme ?? "light",
