@@ -68,4 +68,12 @@ export default {
   editor_feed_in_addition_desc: "Fixed €/kWh adjustment for feed-in (negative = reduction, e.g. -0.02)",
   editor_feed_in_tax_label: "Feed-in: Tax / BTW (%)",
   editor_feed_in_tax_desc: "Percentage applied after addition for feed-in",
+  editor_grid_charges_label: "Grid: Charges (€/kWh)",
+  editor_grid_charges_desc: "Cost per kWh for network fees and energy tax",
+  editor_feed_in_charges_label: "Feed-in: Charges (€/kWh)",
+  editor_feed_in_charges_desc: "Compensation per kWh for feed-in",
+  editor_fixed_per_kwh_label: "Fixed cost (€/kWh)",
+  editor_fixed_per_kwh_desc: "Vaste toeslag (per kWh) voor berekening",
+  editor_energy_tax_per_kwh_label: "Energy tax (€/kWh)",
+  editor_energy_tax_per_kwh_desc: "Energiebelasting per kWh",
 };

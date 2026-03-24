@@ -67,4 +67,12 @@ export default {
   editor_feed_in_addition_desc: "Vast bedrag in €/kWh voor teruglevering (negatief = korting, bijv. -0.02)",
   editor_feed_in_tax_label: "Teruglevering: BTW (%)",
   editor_feed_in_tax_desc: "Percentage na opslag voor teruglevering",
+  editor_grid_charges_label: "Afname: Kosten (€/kWh)",
+  editor_grid_charges_desc: "Kosten per kWh voor netbeheerkosten en energiebelasting",
+  editor_feed_in_charges_label: "Teruglevering: Compensatie (€/kWh)",
+  editor_feed_in_charges_desc: "Compensatie per kWh voor teruglevering",
+  editor_fixed_per_kwh_label: "Vaste kosten (€/kWh)",
+  editor_fixed_per_kwh_desc: "Vaste toeslag (per kWh) voor berekening",
+  editor_energy_tax_per_kwh_label: "Energiebelasting (€/kWh)",
+  editor_energy_tax_per_kwh_desc: "Energiebelasting per kWh",
 };

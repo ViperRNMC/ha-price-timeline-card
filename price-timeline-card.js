@@ -832,15 +832,43 @@ class PriceTimelineCard extends LitElement {
     return (Math.round(Math.round(price_per_kwh * 100 * 10) / 10) / 100);
   }
 
+  _parseNumeric(value, defaultValue = 0) {
+    if (value === undefined || value === null || value === "") return defaultValue;
+    if (typeof value === "string") {
+      const normalized = value.trim().replace(/\s+/g, "").replace(",", ".");
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? parsed : defaultValue;
+    }
+    return Number.isFinite(value) ? value : defaultValue;
+  }
+
   _getDisplayPrice(price_per_kwh) {
     const calc = this.config?.price_calculation;
     if (!calc?.enabled) return price_per_kwh;
-    const display = calc.display ?? "market";
+
+    const display = (calc.display || "market").toLowerCase();
     if (display === "market") return price_per_kwh;
-    const isGrid = display === "grid";
-    const addition = isGrid ? (calc.grid_addition ?? 0) : (calc.feed_in_addition ?? 0);
-    const tax = isGrid ? (calc.grid_tax ?? 0) : (calc.feed_in_tax ?? 0);
-    return (price_per_kwh + addition) * (1 + tax / 100);
+
+    const isFeedIn = ["feedin", "feed_in", "feed-in"].includes(display);
+
+    // 4 simpele velden, alle bedragen zijn incl. btw (21%)
+    const tax = this._parseNumeric(calc.tax ?? 21);
+    const energyTax = this._parseNumeric(calc.energy_tax ?? 0.12286); // inkoop energiebelasting (niet dubbel belasten)
+    const gridCharges = this._parseNumeric(calc.grid_charges ?? 0.01815); // inkoopvergoeding
+    const feedInCharges = this._parseNumeric(calc.feed_in_charges ?? 0.01271); // inkoopvergoeding teruglevering
+
+    const base = price_per_kwh * (1 + tax / 100) + energyTax;
+
+    if (isFeedIn) {
+      return base - feedInCharges;
+    }
+
+    return base + gridCharges;
+  }
+
+  _isFeedInMode() {
+    const display = (this.config?.price_calculation?.display || "market").toLowerCase();
+    return ["feedin", "feed_in", "feed-in"].includes(display);
   }
 
   _getColorForPrice(price, min, max) {
@@ -850,9 +878,14 @@ class PriceTimelineCard extends LitElement {
     const colors = scheme.colors;
     
     // Normalize price between 0 and 1
-    const ratio = (price - min) / (max - min || 1);
+    let ratio = (price - min) / (max - min || 1);
     
-    // For 2-color schemes: 0 = first color (cheap), 1 = last color (expensive)
+    // Voor feed-in: omkeren (hoger = groen = meer verdien)
+    if (this._isFeedInMode()) {
+      ratio = 1 - ratio;
+    }
+    
+    // For 2-color schemes: 0 = first color (cheap/high earnings), 1 = last color (expensive/low earnings)
     if (colors.length === 2) {
       return ratio <= 0.5 ? colors[0] : colors[1];
     }
@@ -2110,10 +2143,10 @@ class PriceTimelineEditor extends LitElement {
       price_calculation: {
         enabled: false,
         display: "market",
-        grid_addition: 0,
-        grid_tax: 0,
-        feed_in_addition: 0,
-        feed_in_tax: 0,
+        tax: 21,
+        energy_tax: 0.1108,
+        grid_charges: 0.01815,
+        feed_in_charges: 0.01271,
       },
       appearance_settings: {
         theme: "light",
@@ -2288,10 +2321,10 @@ class PriceTimelineEditor extends LitElement {
               },
             },
           },
-          { name: "grid_addition", selector: { number: { min: -2, max: 2, step: 0.001, mode: "box", unit_of_measurement: "€/kWh" } } },
-          { name: "grid_tax", selector: { number: { min: 0, max: 100, step: 0.1, mode: "box", unit_of_measurement: "%" } } },
-          { name: "feed_in_addition", selector: { number: { min: -2, max: 2, step: 0.001, mode: "box", unit_of_measurement: "€/kWh" } } },
-          { name: "feed_in_tax", selector: { number: { min: 0, max: 100, step: 0.1, mode: "box", unit_of_measurement: "%" } } },
+          { name: "tax", selector: { number: { min: 0, max: 100, step: 0.1, mode: "box", unit_of_measurement: "%" } } },
+          { name: "energy_tax", selector: { number: { min: -2, max: 2, step: 0.001, mode: "box", unit_of_measurement: "€/kWh" } } },
+          { name: "grid_charges", selector: { number: { min: -2, max: 2, step: 0.001, mode: "box", unit_of_measurement: "€/kWh" } } },
+          { name: "feed_in_charges", selector: { number: { min: -2, max: 2, step: 0.001, mode: "box", unit_of_measurement: "€/kWh" } } },
         ],
       },
     ];
@@ -2320,14 +2353,10 @@ class PriceTimelineEditor extends LitElement {
       price_calculation: {
         enabled: this._config.price_calculation?.enabled ?? false,
         display: this._config.price_calculation?.display ?? "market",
-        grid_addition: this._config.price_calculation?.grid_addition ?? 0,
-        grid_tax: this._config.price_calculation?.grid_tax ?? 0,
-        feed_in_addition: this._config.price_calculation?.feed_in_addition ?? 0,
-        feed_in_tax: this._config.price_calculation?.feed_in_tax ?? 0,
-      },
-      appearance_settings: {
-        theme: this._config.appearance_settings?.theme ?? "light",
-        color_scheme: this._config.appearance_settings?.color_scheme ?? "default",
+        tax: this._config.price_calculation?.tax ?? 21,
+        energy_tax: this._config.price_calculation?.energy_tax ?? 0.1108,
+        grid_charges: this._config.price_calculation?.grid_charges ?? 0.01815,
+        feed_in_charges: this._config.price_calculation?.feed_in_charges ?? 0.01271
         ...(mode === "graph" ? { gradient_fill: this._config.appearance_settings?.gradient_fill ?? false } : {}),
       },
     };
